@@ -1,0 +1,13 @@
+{
+  "listing_name": "DashData''Governance — Data Governance",
+  "pypi_package": "dash-gov",
+  "short_description": "Scan tables for PII and apply Unity Catalog sensitivity tags — no Spark expertise required.",
+  "long_description": "Part of the Dashlibs suite for Databricks. Provides an ipywidgets notebook UI plus a Python API. Install with %pip install dash-gov and call dashgov.launch() to open the interactive wizard.",
+  "categories": ["Data Engineering", "Developer Tools"],
+  "provider": "dash-libs",
+  "source_url": "https://github.com/dash-libs/dash-gov",
+  "documentation_url": "https://github.com/dash-libs/dash-gov/tree/main/docs/api",
+  "license": "Apache-2.0",
+  "supported_platforms": ["Databricks Runtime 12.x+"],
+  "install_instructions": "%pip install dash-gov"
+}

@@ -64,13 +64,15 @@ jobs:
           name: api-docs
           path: docs/api/
 
-  # ── Release ──────────────────────────────────────────────────────────────
+  # ── Release: tag, GitHub release, commit docs ────────────────────────────
   release:
     name: Bump version & release
     runs-on: ubuntu-latest
     needs: [test, docs]
     permissions:
       contents: write
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -108,7 +110,7 @@ jobs:
           RELEASE_NOTE: ${{ github.event.inputs.release_note }}
         run: |
           cat > RELEASE_NOTES.md << EOF
-          ## dash-gov v${VERSION}
+          ## DashGov — Data Governance v${VERSION}
 
           **Released:** $(date -u '+%Y-%m-%d')
           **Previous:** v${PREV_VERSION}
@@ -118,15 +120,14 @@ jobs:
           ### What's included
           - All tests passing across Python 3.9, 3.10, 3.11, 3.12
           - API documentation regenerated (see \`docs/api/\`)
-          - Built wheel available in release assets
+          - Published to PyPI and Databricks Marketplace
 
-          ### Test coverage
-          Run \`pytest tests/ -v\` locally to verify.
+          ### Install
+          \`\`\`bash
+          pip install dash-gov==${VERSION}
+          \`\`\`
 
-          ### API Docs
-          See \`docs/api/index.html\` or install and call \`help(dashgov)\`.
-
-          ### Quick Start
+          ### Quick Start (Databricks notebook)
           \`\`\`python
           %pip install dash-gov==${VERSION}
           import dashgov
@@ -151,3 +152,99 @@ jobs:
           tag_name: "v${{ steps.bump.outputs.version }}"
           body_path: RELEASE_NOTES.md
           files: dist/*
+
+      - name: Upload dist artifact for PyPI job
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # ── Publish to PyPI (Trusted Publisher / OIDC — no token needed) ─────────
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: release
+    permissions:
+      id-token: write   # required for OIDC trusted publisher
+    environment:
+      name: pypi
+      url: https://pypi.org/project/dash-gov
+    steps:
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  # ── Package for Databricks Marketplace ───────────────────────────────────
+  publish-databricks:
+    name: Package for Databricks Marketplace
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "v${{ needs.release.outputs.version }}"
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Build Marketplace bundle
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          mkdir -p marketplace-bundle/files
+
+          # Copy wheel
+          cp dist/*.whl marketplace-bundle/files/
+
+          # Generate companion notebook
+          cat > marketplace-bundle/files/DashGov — Data Governance_Quickstart.py << NBEOF
+          # Databricks notebook source
+          # MAGIC %md
+          # MAGIC # DashGov — Data Governance v${VERSION} — Data Quality for Databricks
+          # MAGIC Install and launch the interactive UI.
+
+          # COMMAND ----------
+          # MAGIC %pip install dash-gov==${VERSION}
+
+          # COMMAND ----------
+          dbutils.library.restartPython()
+
+          # COMMAND ----------
+          import dashgov
+          dashgov.launch()
+          NBEOF
+
+          # Generate listing metadata
+          cat > marketplace-bundle/listing.json << LEOF
+          {
+            "listing_name": "DashGov — Data Governance — Data Quality",
+            "version": "${VERSION}",
+            "short_description": "Scan tables for PII and apply Unity Catalog sensitivity tags",
+            "long_description": "DashGov — Data Governance provides an ipywidgets UI inside Databricks notebooks to run data quality checks on DataFrames, Unity Catalog tables, and SQL queries. No coding required for business users.",
+            "categories": ["Data Governance,Compliance"],
+            "tags": ["data-quality", "databricks", "unity-catalog", "pyspark"],
+            "provider": "dash-libs",
+            "documentation_url": "https://github.com/dash-libs/dash-gov",
+            "source_url": "https://github.com/dash-libs/dash-gov",
+            "pypi_package": "dash-gov==${VERSION}"
+          }
+          LEOF
+
+          # Zip the bundle
+          cd marketplace-bundle && zip -r ../dashgov-marketplace-${VERSION}.zip .
+          echo "Bundle created: dashgov-marketplace-${VERSION}.zip"
+
+      - name: Upload Marketplace bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: marketplace-bundle
+          path: dashgov-marketplace-*.zip
+          retention-days: 90
