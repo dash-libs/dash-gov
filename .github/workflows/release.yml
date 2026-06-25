@@ -1,0 +1,50 @@
+name: Weekly Release
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"   # Every Monday 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: pip install hatch
+
+      - name: Bump patch version
+        run: |
+          current=$(hatch version)
+          hatch version patch
+          new=$(hatch version)
+          echo "VERSION=$new" >> $GITHUB_ENV
+          echo "Bumped $current → $new"
+
+      - name: Build wheel + sdist
+        run: hatch build
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: release v${{ env.VERSION }}"
+          git tag "v${{ env.VERSION }}"
+          git push origin HEAD --tags
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ env.VERSION }}"
+          files: dist/*
+          generate_release_notes: true
