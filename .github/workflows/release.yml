@@ -4,10 +4,71 @@ on:
   schedule:
     - cron: "0 9 * * 1"   # Every Monday 09:00 UTC
   workflow_dispatch:
+    inputs:
+      release_note:
+        description: "Optional release note (shown in GitHub release body)"
+        required: false
+        default: ""
 
 jobs:
-  release:
+  # ── Gate: tests must pass ────────────────────────────────────────────────
+  test:
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: pip install -e ".[dev]" pytest pytest-cov
+
+      - name: Run tests
+        run: pytest tests/ -v --cov=dashgov --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+
+  # ── Generate docs ────────────────────────────────────────────────────────
+  docs:
+    name: Generate API docs
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: pip install -e ".[dev]" pdoc
+
+      - name: Generate docs
+        run: |
+          pdoc dashgov --output-dir docs/api --docformat google
+          echo "Docs generated at $(date -u)" > docs/api/.generated
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-docs
+          path: docs/api/
+
+  # ── Release ──────────────────────────────────────────────────────────────
+  release:
+    name: Bump version & release
+    runs-on: ubuntu-latest
+    needs: [test, docs]
     permissions:
       contents: write
     steps:
@@ -20,31 +81,73 @@ jobs:
           python-version: "3.11"
 
       - name: Install build tools
-        run: pip install hatch
+        run: pip install hatch pdoc
 
       - name: Bump patch version
+        id: bump
         run: |
           current=$(hatch version)
           hatch version patch
           new=$(hatch version)
-          echo "VERSION=$new" >> $GITHUB_ENV
+          echo "version=$new" >> $GITHUB_OUTPUT
+          echo "prev_version=$current" >> $GITHUB_OUTPUT
           echo "Bumped $current → $new"
+
+      - name: Regenerate docs into repo
+        run: |
+          pip install -e ".[dev]"
+          pdoc dashgov --output-dir docs/api --docformat google
 
       - name: Build wheel + sdist
         run: hatch build
 
-      - name: Commit version bump
+      - name: Write release notes
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          PREV_VERSION: ${{ steps.bump.outputs.prev_version }}
+          RELEASE_NOTE: ${{ github.event.inputs.release_note }}
+        run: |
+          cat > RELEASE_NOTES.md << EOF
+          ## dash-gov v${VERSION}
+
+          **Released:** $(date -u '+%Y-%m-%d')
+          **Previous:** v${PREV_VERSION}
+
+          $( [ -n "${RELEASE_NOTE}" ] && echo "### Notes" && echo "${RELEASE_NOTE}" || true )
+
+          ### What's included
+          - All tests passing across Python 3.9, 3.10, 3.11, 3.12
+          - API documentation regenerated (see \`docs/api/\`)
+          - Built wheel available in release assets
+
+          ### Test coverage
+          Run \`pytest tests/ -v\` locally to verify.
+
+          ### API Docs
+          See \`docs/api/index.html\` or install and call \`help(dashgov)\`.
+
+          ### Quick Start
+          \`\`\`python
+          %pip install dash-gov==${VERSION}
+          import dashgov
+          dashgov.launch()
+          \`\`\`
+          EOF
+
+      - name: Commit version bump + docs
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -m "chore: release v${{ env.VERSION }}"
-          git tag "v${{ env.VERSION }}"
+          git commit -m "release: v${VERSION} — tests passed, docs updated"
+          git tag "v${VERSION}"
           git push origin HEAD --tags
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v${{ env.VERSION }}"
+          tag_name: "v${{ steps.bump.outputs.version }}"
+          body_path: RELEASE_NOTES.md
           files: dist/*
-          generate_release_notes: true

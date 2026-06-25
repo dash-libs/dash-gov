@@ -14,7 +14,7 @@ keywords = ["databricks", "governance", "pii", "compliance", "unity-catalog"]
 dependencies = ["ipywidgets>=8.0"]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "hatch"]
+dev = ["pytest", "pytest-cov", "hatch", "pdoc", "ruff"]
 
 [project.urls]
 Homepage = "https://github.com/darshan-innovation/dash-gov"
