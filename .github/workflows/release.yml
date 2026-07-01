@@ -135,16 +135,33 @@ jobs:
           \`\`\`
           EOF
 
-      - name: Commit version bump + docs
+      - name: Commit version bump + docs to a release branch
         env:
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git push origin --delete "refs/tags/v${VERSION}" 2>/dev/null || true
+          git push origin --delete "release/v${VERSION}" 2>/dev/null || true
+          git tag -d "v${VERSION}" 2>/dev/null || true
+          git checkout -b "release/v${VERSION}"
           git add .
           git commit -m "release: v${VERSION} — tests passed, docs updated"
           git tag "v${VERSION}"
-          git push origin HEAD --tags
+          git push origin "release/v${VERSION}"
+          git push origin "v${VERSION}"
+
+      - name: Open and auto-merge release PR
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          gh pr create --base main --head "release/v${VERSION}" \
+            --title "release: v${VERSION}" \
+            --body "Automated release PR — tests passed, docs regenerated, version bumped to v${VERSION}." \
+            2>/dev/null || true
+          gh pr merge "release/v${VERSION}" --merge --admin --delete-branch
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
