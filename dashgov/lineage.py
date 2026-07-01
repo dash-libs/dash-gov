@@ -5,7 +5,7 @@ Works with plain Python dicts so it is fully testable without Spark or UC.
 Use fetch_uc_lineage() to pull live data from a Unity Catalog workspace.
 """
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from collections import deque
 from typing import Optional
 

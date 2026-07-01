@@ -225,7 +225,7 @@ jobs:
           cat > marketplace-bundle/files/DashGov — Data Governance_Quickstart.py << NBEOF
           # Databricks notebook source
           # MAGIC %md
-          # MAGIC # DashGov — Data Governance v${VERSION} — Data Quality for Databricks
+          # MAGIC # DashGov — Data Governance v${VERSION} for Databricks
           # MAGIC Install and launch the interactive UI.
 
           # COMMAND ----------
@@ -242,12 +242,12 @@ jobs:
           # Generate listing metadata
           cat > marketplace-bundle/listing.json << LEOF
           {
-            "listing_name": "DashGov — Data Governance — Data Quality",
+            "listing_name": "DashGov — Data Governance",
             "version": "${VERSION}",
             "short_description": "Scan tables for PII and apply Unity Catalog sensitivity tags",
-            "long_description": "DashGov — Data Governance provides an ipywidgets UI inside Databricks notebooks to run data quality checks on DataFrames, Unity Catalog tables, and SQL queries. No coding required for business users.",
+            "long_description": "DashGov — Data Governance provides an ipywidgets UI inside Databricks notebooks to scan Unity Catalog tables for PII and apply sensitivity tags. No coding required for business users.",
             "categories": ["Data Governance,Compliance"],
-            "tags": ["data-quality", "databricks", "unity-catalog", "pyspark"],
+            "tags": ["governance", "pii", "databricks", "unity-catalog", "pyspark"],
             "provider": "dash-libs",
             "documentation_url": "https://github.com/dash-libs/dash-gov",
             "source_url": "https://github.com/dash-libs/dash-gov",

@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install ruff
-      - run: ruff check dashdq/
+      - run: ruff check dashgov/
 
   test:
     runs-on: ubuntu-latest
@@ -31,7 +31,7 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]" pytest pytest-cov
       - name: Test
-        run: pytest tests/ -v --cov=dashdq --cov-report=xml
+        run: pytest tests/ -v --cov=dashgov --cov-report=xml
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
