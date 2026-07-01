@@ -4,17 +4,38 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dash-gov"
-version = "0.1.0"
-description = "Data governance and PII scanning for Databricks — with a built-in notebook UI"
+dynamic = ["version"]
+description = "Data lineage and governance for Databricks — table/column lineage, classification, and a built-in notebook UI"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "Apache-2.0" }
-authors = [{ name = "Darshan Shah", email = "darshan.innovation@icloud.com" }]
-keywords = ["databricks", "governance", "pii", "compliance", "unity-catalog"]
-dependencies = ["ipywidgets>=8.0"]
+authors = [{ name = "Darshan Shah", email = "darshan.innovation@gmail.com" }]
+keywords = ["databricks", "lineage", "governance", "unity-catalog", "data-catalog"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Information Technology",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = ["ipywidgets>=8.0", "sqlglot>=23.0"]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "hatch", "pdoc", "ruff"]
 
 [project.urls]
-Homepage = "https://github.com/darshan-innovation/dash-gov"
+Homepage = "https://github.com/dash-libs/dash-gov"
+
+[tool.hatch.version]
+path = "dashgov/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dashgov"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
