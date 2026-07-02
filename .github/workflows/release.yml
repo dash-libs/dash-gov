@@ -71,6 +71,7 @@ jobs:
     needs: [test, docs]
     permissions:
       contents: write
+      pull-requests: write
     outputs:
       version: ${{ steps.bump.outputs.version }}
     steps:
