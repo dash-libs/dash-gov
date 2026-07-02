@@ -8,7 +8,6 @@ requiring a live Unity Catalog connection.
 Requires sqlglot (pure Python, no Spark dependency).
 """
 from __future__ import annotations
-from typing import Optional
 
 
 def _sqlglot():
