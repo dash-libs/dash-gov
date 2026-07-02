@@ -1,6 +1,24 @@
 """DashGov interactive UI for Databricks notebooks."""
 from __future__ import annotations
 
+_LIBRARY = "dashgov"
+
+
+def env_setup() -> None:
+    """Open the environment setup panel — where should dashgov read/write
+    its configs? Defaults to the notebook's current working directory if
+    never called."""
+    try:
+        import dashui
+        from IPython.display import display
+    except ImportError:
+        raise RuntimeError("ipywidgets required. Run: %pip install ipywidgets") from None
+
+    display(dashui.card([
+        dashui.header("DashGov — Environment Setup", library=_LIBRARY),
+        dashui.env_setup_panel(_LIBRARY).widget,
+    ]))
+
 
 def _lineage_html(graph_dict: dict, focus_table: str = "") -> str:
     """Render a lineage graph as a simple HTML DAG (upstream → focus → downstream)."""
@@ -59,6 +77,8 @@ def launch():
 
     import dashui
 
+    saved = dashui.load_config(_LIBRARY, defaults={"dialect": "spark", "workspace_url": "", "table": "", "depth": 2})
+
     # ── SQL parser ────────────────────────────────────────────────────────────
     sql_input = w.Textarea(
         description="SQL:",
@@ -68,7 +88,7 @@ def launch():
     dialect_toggle = w.ToggleButtons(
         options=["spark", "snowflake", "bigquery", "trino"],
         description="Dialect:",
-        value="spark",
+        value=saved["dialect"],
     )
     parse_btn = dashui.action_button("Parse Lineage from SQL", style="info")
     parse_output = dashui.output_panel()
@@ -80,6 +100,7 @@ def launch():
             if not sql:
                 print("Warning: paste a SQL statement above")
                 return
+            _save_state()
             try:
                 from dashgov.parser import parse_table_lineage, parse_column_lineage
                 tl = parse_table_lineage(sql, dialect=dialect_toggle.value)
@@ -105,13 +126,25 @@ def launch():
     uc_workspace = w.Text(
         description="Workspace URL:",
         placeholder="https://adb-xxx.azuredatabricks.net",
+        value=saved["workspace_url"],
     )
     uc_token = w.Password(description="Token:", placeholder="dapixxxxxxxx")
-    uc_table = w.Text(description="Table:", placeholder="catalog.schema.table")
-    uc_depth = w.IntSlider(description="Depth:", value=2, min=1, max=5)
+    uc_table = w.Text(description="Table:", placeholder="catalog.schema.table", value=saved["table"])
+    uc_depth = w.IntSlider(description="Depth:", value=saved["depth"], min=1, max=5)
     uc_btn = dashui.action_button("Fetch UC Lineage", style="success")
     uc_output = dashui.output_panel()
     lineage_viz = w.HTML(value="")
+
+    def _save_state() -> None:
+        try:
+            dashui.save_config(_LIBRARY, {
+                "dialect": dialect_toggle.value,
+                "workspace_url": uc_workspace.value.strip(),
+                "table": uc_table.value.strip(),
+                "depth": uc_depth.value,
+            })
+        except Exception:
+            pass  # persistence is a convenience, never block the actual operation on it
 
     def on_uc_fetch(b):
         with uc_output:
@@ -122,6 +155,7 @@ def launch():
             if not (url and tok and tbl):
                 print("Warning: fill in workspace URL, token, and table name")
                 return
+            _save_state()
             try:
                 from dashgov.lineage import fetch_uc_lineage, build_lineage_graph
                 raw = fetch_uc_lineage(tbl, url, tok, depth=uc_depth.value)
@@ -144,8 +178,13 @@ def launch():
 
     uc_btn.on_click(on_uc_fetch)
 
+    env_accordion = w.Accordion(children=[dashui.env_setup_panel(_LIBRARY).widget])
+    env_accordion.set_title(0, "Environment setup")
+    env_accordion.selected_index = None
+
     ui = dashui.card([
         dashui.header("DashGov — Data Lineage & Governance", library="dashgov"),
+        env_accordion,
 
         dashui.section("Step 1: Parse lineage from SQL"),
         dashui.html(
