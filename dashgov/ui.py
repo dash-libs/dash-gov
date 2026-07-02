@@ -70,7 +70,7 @@ def launch():
         description="Dialect:",
         value="spark",
     )
-    parse_btn = dashui.action_button("Parse Lineage from SQL", style="info", emoji="🔍")
+    parse_btn = dashui.action_button("Parse Lineage from SQL", style="info")
     parse_output = dashui.output_panel()
 
     def on_parse(b):
@@ -78,7 +78,7 @@ def launch():
             parse_output.clear_output()
             sql = sql_input.value.strip()
             if not sql:
-                print("⚠️  Paste a SQL statement above")
+                print("Warning: paste a SQL statement above")
                 return
             try:
                 from dashgov.parser import parse_table_lineage, parse_column_lineage
@@ -97,7 +97,7 @@ def launch():
                             )
                             print(f"  {src:40s} → {c['target_column']}")
             except Exception as e:
-                print(f"❌ {e}")
+                print(f"Error: {e}")
 
     parse_btn.on_click(on_parse)
 
@@ -109,7 +109,7 @@ def launch():
     uc_token = w.Password(description="Token:", placeholder="dapixxxxxxxx")
     uc_table = w.Text(description="Table:", placeholder="catalog.schema.table")
     uc_depth = w.IntSlider(description="Depth:", value=2, min=1, max=5)
-    uc_btn = dashui.action_button("Fetch UC Lineage", style="success", emoji="🌐")
+    uc_btn = dashui.action_button("Fetch UC Lineage", style="success")
     uc_output = dashui.output_panel()
     lineage_viz = w.HTML(value="")
 
@@ -120,7 +120,7 @@ def launch():
             tok = uc_token.value.strip()
             tbl = uc_table.value.strip()
             if not (url and tok and tbl):
-                print("⚠️  Fill in workspace URL, token, and table name")
+                print("Warning: fill in workspace URL, token, and table name")
                 return
             try:
                 from dashgov.lineage import fetch_uc_lineage, build_lineage_graph
@@ -140,12 +140,12 @@ def launch():
                     for t in imp["all_downstream"]:
                         print(f"  ↓ {t}")
             except Exception as e:
-                print(f"❌ {e}")
+                print(f"Error: {e}")
 
     uc_btn.on_click(on_uc_fetch)
 
     ui = dashui.card([
-        dashui.header("DashGov — Data Lineage & Governance", library="dashgov", emoji="🔗"),
+        dashui.header("DashGov — Data Lineage & Governance", library="dashgov"),
 
         dashui.section("Step 1: Parse lineage from SQL"),
         dashui.html(

@@ -98,7 +98,7 @@ class GovReport:
     def apply_tags(self):
         """Write Unity Catalog column tags for sensitivity classification."""
         if not self.table:
-            print("⚠️  No table name — cannot apply UC tags")
+            print("Warning: no table name — cannot apply UC tags")
             return
         from pyspark.sql import SparkSession
         spark = SparkSession.getActiveSession()
@@ -110,8 +110,8 @@ class GovReport:
                         f"SET TAGS ('sensitivity' = '{info['sensitivity']}')"
                     )
                 except Exception as e:
-                    print(f"  ⚠️  Could not tag {col}: {e}")
-        print(f"✅ Tags applied to {self.table}")
+                    print(f"  Warning: could not tag {col}: {e}")
+        print(f"Tags applied to {self.table}")
 
     def to_dict(self) -> dict:
         return self.findings
