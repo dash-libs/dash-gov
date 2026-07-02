@@ -222,7 +222,7 @@ jobs:
           cp dist/*.whl marketplace-bundle/files/
 
           # Generate companion notebook
-          cat > marketplace-bundle/files/DashGov — Data Governance_Quickstart.py << NBEOF
+          cat > marketplace-bundle/files/DashGov_Quickstart.py << NBEOF
           # Databricks notebook source
           # MAGIC %md
           # MAGIC # DashGov — Data Governance v${VERSION} for Databricks
