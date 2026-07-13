@@ -4,7 +4,7 @@ from dashgov.parser import parse_table_lineage, parse_column_lineage, parse_note
 from dashgov.classifier import classify_table, classify_all
 from dashgov.ui import env_setup, launch
 
-__version__ = "0.1.4"
+__version__ = "0.1.5"
 __all__ = [
     "LineageGraph",
     "build_lineage_graph",
