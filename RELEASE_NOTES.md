@@ -1,7 +1,7 @@
-## DashGov — Data Governance v0.1.4
+## DashGov — Data Governance v0.1.5
 
-**Released:** 2026-07-02
-**Previous:** v0.1.3
+**Released:** 2026-07-20
+**Previous:** v0.1.4
 
 
 
@@ -12,12 +12,12 @@
 
 ### Install
 ```bash
-pip install dash-gov==0.1.4
+pip install dash-gov==0.1.5
 ```
 
 ### Quick Start (Databricks notebook)
 ```python
-%pip install dash-gov==0.1.4
+%pip install dash-gov==0.1.5
 import dashgov
 dashgov.launch()
 ```
