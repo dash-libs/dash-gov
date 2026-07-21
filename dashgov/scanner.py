@@ -19,6 +19,53 @@ SENSITIVITY_KEYWORDS = {
     "LOW": ["name", "city", "country", "region", "department"],
 }
 
+# How many sampled values per column are regex-scanned for PII
+_PII_VALUE_SAMPLE = 200
+
+
+def luhn_valid(digits: str) -> bool:
+    """Luhn checksum — filters the 13-16-digit credit_card regex's false
+    positives (account numbers, tracking ids) down to plausible card numbers."""
+    total, parity = 0, len(digits) % 2
+    for i, ch in enumerate(digits):
+        d = int(ch)
+        if i % 2 == parity:
+            d *= 2
+            if d > 9:
+                d -= 9
+        total += d
+    return total % 10 == 0
+
+
+def detect_pii_in_values(values: list) -> list[str]:
+    """Pure-Python PII detection over a list of sampled string values."""
+    detected = set()
+    sample = values[:_PII_VALUE_SAMPLE]
+    for pii_type, pattern in PII_PATTERNS.items():
+        for v in sample:
+            m = re.search(pattern, str(v))
+            if not m:
+                continue
+            if pii_type == "credit_card" and not luhn_valid(re.sub(r"[ -]", "", m.group())):
+                continue
+            detected.add(pii_type)
+            break
+    return sorted(detected)
+
+
+def infer_sensitivity(col_name: str) -> str:
+    lower = col_name.lower()
+    for level, keywords in SENSITIVITY_KEYWORDS.items():
+        if any(kw in lower for kw in keywords):
+            return level
+    return "NONE"
+
+
+def run_scan(table: str = None, df=None, sample_rows: int = 1000) -> "GovReport":
+    """Scan a UC table (or DataFrame) for PII and sensitivity — the
+    top-level entrypoint; equivalent to GovernanceScanner(...).scan()."""
+    return GovernanceScanner(df=df, table=table).scan(sample_rows=sample_rows)
+
 
 class GovernanceScanner:
     """
@@ -42,44 +89,29 @@ class GovernanceScanner:
         return SparkSession.getActiveSession().table(table)
 
     def scan(self, sample_rows: int = 1000) -> "GovReport":
-        findings = {}
         schema = self._df.schema
-        sample = self._df.limit(sample_rows)
+        string_cols = [f.name for f in schema.fields if "String" in str(f.dataType)]
 
+        # One collect() for the whole sample — not one Spark job per column.
+        sampled: dict[str, list] = {c: [] for c in string_cols}
+        if string_cols:
+            for row in self._df.select(*string_cols).limit(sample_rows).collect():
+                for col in string_cols:
+                    value = row[col]
+                    if value is not None:
+                        sampled[col].append(value)
+
+        findings = {}
         for field in schema.fields:
-            col_name = field.name
-            dtype = str(field.dataType)
-            sensitivity = self._infer_sensitivity(col_name)
-            pii_types = []
-
-            if "String" in dtype:
-                col_vals = [r[col_name] for r in sample.select(col_name).collect()
-                            if r[col_name] is not None]
-                pii_types = self._detect_pii(col_vals)
-
-            findings[col_name] = {
-                "dtype": dtype,
-                "sensitivity": sensitivity,
+            pii_types = detect_pii_in_values(sampled.get(field.name, []))
+            findings[field.name] = {
+                "dtype": str(field.dataType),
+                "sensitivity": infer_sensitivity(field.name),
                 "pii_types": pii_types,
                 "has_pii": len(pii_types) > 0,
             }
 
         return GovReport(self._table, findings)
-
-    def _infer_sensitivity(self, col_name: str) -> str:
-        lower = col_name.lower()
-        for level, keywords in SENSITIVITY_KEYWORDS.items():
-            if any(kw in lower for kw in keywords):
-                return level
-        return "NONE"
-
-    def _detect_pii(self, values: list[str]) -> list[str]:
-        detected = set()
-        sample = values[:200]
-        for pii_type, pattern in PII_PATTERNS.items():
-            if any(re.search(pattern, str(v)) for v in sample):
-                detected.add(pii_type)
-        return list(detected)
 
 
 class GovReport:
@@ -94,6 +126,18 @@ class GovReport:
         for col, info in self.findings.items():
             pii = ", ".join(info["pii_types"]) or "—"
             print(f"{col:<30} {info['sensitivity']:<12} {pii}")
+
+    def rows(self) -> list[dict]:
+        """Findings as a list of row-dicts, ready for dashui.data_table_html()."""
+        return [
+            {
+                "column": col,
+                "dtype": info["dtype"],
+                "sensitivity": info["sensitivity"],
+                "pii_types": ", ".join(info["pii_types"]) or "—",
+            }
+            for col, info in self.findings.items()
+        ]
 
     def apply_tags(self):
         """Write Unity Catalog column tags for sensitivity classification."""

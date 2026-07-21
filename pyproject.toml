@@ -23,7 +23,7 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
-dependencies = ["ipywidgets>=8.0", "sqlglot>=23.0", "dash-uis==0.3.1"]
+dependencies = ["ipywidgets>=8.0", "sqlglot>=23.0", "dash-uis==0.3.5"]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "hatch", "pdoc", "ruff"]

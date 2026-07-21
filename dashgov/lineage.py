@@ -163,6 +163,22 @@ class LineageGraph:
             ],
         }
 
+    def to_json(self, indent: int = 2) -> str:
+        """JSON form of to_dict() — what dashontology's UI asks users to paste."""
+        import json
+        return json.dumps(self.to_dict(), indent=indent)
+
+    @staticmethod
+    def from_json(text: str) -> "LineageGraph":
+        import json
+        data = json.loads(text)
+        return build_lineage_graph(
+            list(data.get("tables", {}).values()) if isinstance(data.get("tables"), dict)
+            else data.get("tables", []),
+            data.get("table_edges", []),
+            data.get("column_edges", []),
+        )
+
     def summary(self) -> dict:
         return {
             "total_tables": len(self.tables),
@@ -235,20 +251,33 @@ def build_lineage_graph(
 
 def fetch_uc_lineage(
     table: str,
-    workspace_url: str,
-    token: str,
+    workspace_url: str | None = None,
+    token: str | None = None,
     depth: int = 2,
 ) -> dict:
     """
     Fetch table-level and column-level lineage from Unity Catalog REST API.
 
     Returns a dict compatible with build_lineage_graph().
-    Requires workspace_url (https://...) and a Databricks PAT.
+    Inside a Databricks notebook, workspace_url and token are auto-detected
+    from the notebook context when omitted — no PAT needed. Outside
+    Databricks, pass both explicitly.
     """
     try:
         import requests
     except ImportError:
         raise RuntimeError("requests is required: pip install requests")
+
+    if not workspace_url or not token:
+        from dashui.context import databricks_context
+        ctx = databricks_context()
+        workspace_url = workspace_url or ctx.workspace_url
+        token = token or ctx.api_token
+    if not workspace_url or not token:
+        raise ValueError(
+            "workspace_url and token are required outside a Databricks notebook "
+            "(no notebook context to auto-detect them from)."
+        )
 
     headers = {"Authorization": f"Bearer {token}"}
     base = workspace_url.rstrip("/")

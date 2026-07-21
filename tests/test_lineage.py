@@ -1,5 +1,4 @@
 """Tests for LineageGraph — traversal, impact analysis, column lineage."""
-import pytest
 from dashgov.lineage import build_lineage_graph, LineageGraph
 
 

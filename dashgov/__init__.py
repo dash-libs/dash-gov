@@ -2,10 +2,13 @@
 from dashgov.lineage import LineageGraph, build_lineage_graph, fetch_uc_lineage
 from dashgov.parser import parse_table_lineage, parse_column_lineage, parse_notebook_lineage
 from dashgov.classifier import classify_table, classify_all
+from dashgov.scanner import GovReport, GovernanceScanner, run_scan
 from dashgov.ui import env_setup, launch
 
 __version__ = "0.1.4"
 __all__ = [
+    "GovReport",
+    "GovernanceScanner",
     "LineageGraph",
     "build_lineage_graph",
     "fetch_uc_lineage",
@@ -16,4 +19,5 @@ __all__ = [
     "classify_all",
     "env_setup",
     "launch",
+    "run_scan",
 ]
