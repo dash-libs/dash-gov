@@ -1,5 +1,4 @@
 """Tests for SQL-based lineage extraction (no Spark, no UC required)."""
-import pytest
 from dashgov.parser import parse_table_lineage, parse_column_lineage, parse_notebook_lineage
 
 

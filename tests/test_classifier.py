@@ -1,5 +1,4 @@
 """Tests for table role classification heuristics."""
-import pytest
 from dashgov.classifier import classify_table, classify_all, count_fk_columns, has_primary_key
 
 
